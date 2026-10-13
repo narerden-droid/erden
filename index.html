@@ -117,6 +117,8 @@ document.getElementById('loginBtn').onclick = async () => {
       document.getElementById('accessCodeHidden').value = code;
       document.getElementById('gateCard').style.display = "none";
       document.getElementById('formCard').style.display = "block";
+      resize();
+      pad.clear();
     } else {
       gateStatus.textContent = result.message || "Неверный код.";
       gateStatus.style.color = "var(--err)";
