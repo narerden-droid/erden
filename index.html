@@ -108,7 +108,10 @@ document.getElementById('loginBtn').onclick = async () => {
   gateStatus.style.color = "var(--muted)";
   try {
     const resp = await fetch(ENDPOINT + "?code=" + encodeURIComponent(code));
-    const result = await resp.json();
+    const raw = await resp.text();
+    let result;
+    try { result = JSON.parse(raw); }
+    catch { throw new Error("Сервер вернул не JSON: " + raw.slice(0, 80)); }
     if (result.status === 'ok') {
       document.getElementById('fioDisplay').value = result.fio;
       document.getElementById('accessCodeHidden').value = code;
@@ -119,7 +122,7 @@ document.getElementById('loginBtn').onclick = async () => {
       gateStatus.style.color = "var(--err)";
     }
   } catch (e) {
-    gateStatus.textContent = "Ошибка проверки кода.";
+    gateStatus.textContent = "Ошибка проверки кода: " + e.message;
     gateStatus.style.color = "var(--err)";
   }
 };
