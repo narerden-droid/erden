@@ -106,7 +106,7 @@ const pad = new SignaturePad(canvas, {backgroundColor:'#fff'});
 document.getElementById('clearSig').onclick = () => pad.clear();
 
 // TODO: replace with your deployed Apps Script Web App URL
-const ENDPOINT = "https://script.google.com/macros/s/AKfycby-CciCiHg26D06HQse4WZ8NkcgAtRTboNojAFoi16hlR34Q5viD_eejctVpCRG-Ow/exec";
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbz-swRPCMEk2zJ-VT4-VNuoHhrjNf96JQ_uKeXNy-_SGJ9K1L0gTHs0dyphe76JntzGXA/exec";
 
 async function loadRecords() {
   const list = document.getElementById('recordsList');
@@ -118,7 +118,25 @@ async function loadRecords() {
     if (result.status !== 'ok') { list.textContent = "Не удалось загрузить записи."; return; }
     document.getElementById('recordsTitle').textContent = result.isAdmin ? "Все записи" : "Мои записи";
     if (!result.records.length) { list.textContent = "Записей пока нет."; return; }
-    result.records.forEach(r => {
+    const MONTHS = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+    const keyOf = s => {
+      let m = /(\d{4})-(\d{2})-\d{2}/.exec(s);
+      if (m) return m[1] + "-" + m[2];
+      m = /\d{2}\.(\d{2})\.(\d{4})/.exec(s);
+      return m ? m[2] + "-" + m[1] : "";
+    };
+    const sorted = result.records.map(r => ({ r, k: keyOf(r.from) }))
+      .sort((a, b) => a.k < b.k ? 1 : a.k > b.k ? -1 : 0);
+    let lastKey = null;
+    sorted.forEach(({ r, k }) => {
+      if (k !== lastKey) {
+        lastKey = k;
+        const h = document.createElement('div');
+        h.style.cssText = 'font-weight:700;margin:16px 0 8px;color:var(--accent)';
+        const name = k ? MONTHS[parseInt(k.slice(5), 10) - 1] : null;
+        h.textContent = name ? name + " " + k.slice(0, 4) : "Без даты";
+        list.appendChild(h);
+      }
       const box = document.createElement('div'); box.className = 'rec';
       if (result.isAdmin) {
         const who = document.createElement('div'); who.style.fontWeight = '700';
