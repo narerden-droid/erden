@@ -106,7 +106,7 @@ const pad = new SignaturePad(canvas, {backgroundColor:'#fff'});
 document.getElementById('clearSig').onclick = () => pad.clear();
 
 // TODO: replace with your deployed Apps Script Web App URL
-const ENDPOINT = "https://script.google.com/macros/s/AKfycby-CciCiHg26D06HQse4WZ8NkcgAtRTboNojAFoi16hlR34Q5viD_eejctVpCRG-Ow/exec";
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbz-swRPCMEk2zJ-VT4-VNuoHhrjNf96JQ_uKeXNy-_SGJ9K1L0gTHs0dyphe76JntzGXA/exec";
 
 async function loadRecords() {
   const list = document.getElementById('recordsList');
@@ -127,6 +127,28 @@ async function loadRecords() {
     };
     const sorted = result.records.map(r => ({ r, k: keyOf(r.from) }))
       .sort((a, b) => a.k < b.k ? 1 : a.k > b.k ? -1 : 0);
+    const parseDT = s => {
+      let m = /(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{2}))?/.exec(s);
+      if (m) return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+      m = /(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/.exec(s);
+      if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0));
+      return null;
+    };
+    const durMs = r => {
+      const a = parseDT(r.from), b = parseDT(r.to);
+      return (a && b && b > a) ? b - a : 0;
+    };
+    const fmtDur = ms => {
+      const mins = Math.round(ms / 60000);
+      const d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), mi = mins % 60;
+      const parts = [];
+      if (d) parts.push(d + " дн.");
+      if (h) parts.push(h + " ч.");
+      if (mi) parts.push(mi + " мин.");
+      return parts.join(" ") || "0 мин.";
+    };
+    const totals = {};
+    sorted.forEach(({ r, k }) => { totals[k] = (totals[k] || 0) + durMs(r); });
     let lastKey = null;
     sorted.forEach(({ r, k }) => {
       if (k !== lastKey) {
@@ -134,7 +156,8 @@ async function loadRecords() {
         const h = document.createElement('div');
         h.style.cssText = 'font-weight:700;margin:16px 0 8px;color:var(--accent)';
         const name = k ? MONTHS[parseInt(k.slice(5), 10) - 1] : null;
-        h.textContent = name ? name + " " + k.slice(0, 4) : "Без даты";
+        h.textContent = (name ? name + " " + k.slice(0, 4) : "Без даты")
+          + (totals[k] ? " · всего " + fmtDur(totals[k]) : "");
         list.appendChild(h);
       }
       const box = document.createElement('div'); box.className = 'rec';
@@ -146,7 +169,15 @@ async function loadRecords() {
       d.textContent = r.from.replace('T',' ') + " — " + r.to.replace('T',' ');
       const why = document.createElement('div'); why.className = 'muted';
       why.textContent = r.reason + (r.other ? " · " + r.other : "");
-      box.appendChild(d); box.appendChild(why); list.appendChild(box);
+      box.appendChild(d);
+      const ms = durMs(r);
+      if (ms) {
+        const dur = document.createElement('div');
+        dur.style.cssText = 'font-size:13px;margin-top:2px';
+        dur.textContent = "Время отсутствия: " + fmtDur(ms);
+        box.appendChild(dur);
+      }
+      box.appendChild(why); list.appendChild(box);
     });
   } catch (e) {
     list.textContent = "Не удалось загрузить записи.";
