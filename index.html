@@ -93,7 +93,7 @@ button{cursor:pointer;border:none;border-radius:8px;font-size:14px;padding:10px 
   <div id="status"></div>
 
   <div id="myRecords">
-    <h2>Мои записи</h2>
+    <h2 id="recordsTitle">Мои записи</h2>
     <div id="recordsList" style="color:var(--muted);font-size:14px">Загрузка...</div>
   </div>
 </div>
@@ -116,9 +116,14 @@ async function loadRecords() {
     const result = JSON.parse(await resp.text());
     list.textContent = "";
     if (result.status !== 'ok') { list.textContent = "Не удалось загрузить записи."; return; }
+    document.getElementById('recordsTitle').textContent = result.isAdmin ? "Все записи" : "Мои записи";
     if (!result.records.length) { list.textContent = "Записей пока нет."; return; }
     result.records.forEach(r => {
       const box = document.createElement('div'); box.className = 'rec';
+      if (result.isAdmin) {
+        const who = document.createElement('div'); who.style.fontWeight = '700';
+        who.textContent = r.fio; box.appendChild(who);
+      }
       const d = document.createElement('div'); d.className = 'dates';
       d.textContent = r.from.replace('T',' ') + " — " + r.to.replace('T',' ');
       const why = document.createElement('div'); why.className = 'muted';
