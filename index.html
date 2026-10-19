@@ -36,6 +36,10 @@ button{cursor:pointer;border:none;border-radius:8px;font-size:14px;padding:10px 
 #submitBtn{background:var(--accent);color:#fff;width:100%;margin-top:22px;padding:12px}
 #submitBtn:disabled{opacity:.6;cursor:default}
 #status{margin-top:14px;font-size:14px;text-align:center;overflow-wrap:anywhere}
+#myRecords h2{font-size:16px;margin:28px 0 8px}
+.rec{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:14px;overflow-wrap:anywhere}
+.rec .dates{font-weight:600}
+.rec .muted{color:var(--muted);font-size:13px;margin-top:2px}
 .err{color:var(--err)}
 .ok{
   position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
@@ -87,6 +91,11 @@ button{cursor:pointer;border:none;border-radius:8px;font-size:14px;padding:10px 
 
   <button id="submitBtn">Отправить</button>
   <div id="status"></div>
+
+  <div id="myRecords">
+    <h2>Мои записи</h2>
+    <div id="recordsList" style="color:var(--muted);font-size:14px">Загрузка...</div>
+  </div>
 </div>
 
 <script>
@@ -98,6 +107,28 @@ document.getElementById('clearSig').onclick = () => pad.clear();
 
 // TODO: replace with your deployed Apps Script Web App URL
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbz-swRPCMEk2zJ-VT4-VNuoHhrjNf96JQ_uKeXNy-_SGJ9K1L0gTHs0dyphe76JntzGXA/exec";
+
+async function loadRecords() {
+  const list = document.getElementById('recordsList');
+  const code = document.getElementById('accessCodeHidden').value;
+  try {
+    const resp = await fetch(ENDPOINT + "?action=list&code=" + encodeURIComponent(code));
+    const result = JSON.parse(await resp.text());
+    list.textContent = "";
+    if (result.status !== 'ok') { list.textContent = "Не удалось загрузить записи."; return; }
+    if (!result.records.length) { list.textContent = "Записей пока нет."; return; }
+    result.records.forEach(r => {
+      const box = document.createElement('div'); box.className = 'rec';
+      const d = document.createElement('div'); d.className = 'dates';
+      d.textContent = r.from.replace('T',' ') + " — " + r.to.replace('T',' ');
+      const why = document.createElement('div'); why.className = 'muted';
+      why.textContent = r.reason + (r.other ? " · " + r.other : "");
+      box.appendChild(d); box.appendChild(why); list.appendChild(box);
+    });
+  } catch (e) {
+    list.textContent = "Не удалось загрузить записи.";
+  }
+}
 
 document.getElementById('loginBtn').onclick = async () => {
   const code = document.getElementById('accessCode').value.trim();
@@ -119,6 +150,7 @@ document.getElementById('loginBtn').onclick = async () => {
       document.getElementById('formCard').style.display = "block";
       resize();
       pad.clear();
+      loadRecords();
     } else {
       gateStatus.textContent = result.message || "Неверный код.";
       gateStatus.style.color = "var(--err)";
@@ -173,6 +205,7 @@ document.getElementById('submitBtn').onclick = async () => {
       document.getElementById('reason').value = "";
       document.getElementById('other').value = "";
       pad.clear();
+      loadRecords();
     } else {
       status.textContent = "Сервер вернул ошибку: " + (result?.message || resultText || "неизвестно");
       status.className = "err";
