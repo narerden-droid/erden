@@ -44,6 +44,9 @@ button{cursor:pointer;border:none;border-radius:8px;font-size:14px;padding:10px 
 .rtbl{width:100%;border-collapse:collapse;font-size:13px}
 .rtbl th,.rtbl td{border:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
 .rtbl th{background:var(--bg);font-weight:600}
+.rtbl.adm{font-size:11px}
+.rtbl.adm th,.rtbl.adm td{padding:4px 5px}
+.rtbl.adm th:nth-child(4),.rtbl.adm td:nth-child(4){max-width:90px}
 .err{color:var(--err)}
 .ok{
   position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
@@ -110,7 +113,7 @@ const pad = new SignaturePad(canvas, {backgroundColor:'#fff'});
 document.getElementById('clearSig').onclick = () => pad.clear();
 
 // TODO: replace with your deployed Apps Script Web App URL
-const ENDPOINT = "https://script.google.com/macros/s/AKfycby-CciCiHg26D06HQse4WZ8NkcgAtRTboNojAFoi16hlR34Q5viD_eejctVpCRG-Ow/exec";
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbz-swRPCMEk2zJ-VT4-VNuoHhrjNf96JQ_uKeXNy-_SGJ9K1L0gTHs0dyphe76JntzGXA/exec";
 
 async function loadRecords() {
   const list = document.getElementById('recordsList');
@@ -165,9 +168,9 @@ async function loadRecords() {
         list.appendChild(h);
 
         const wrap = document.createElement('div'); wrap.className = 'tbl-wrap';
-        const table = document.createElement('table'); table.className = 'rtbl';
+        const table = document.createElement('table'); table.className = 'rtbl' + (result.isAdmin ? ' adm' : '');
         const thead = document.createElement('thead'); const hr = document.createElement('tr');
-        (result.isAdmin ? ["ФИО", "Период", "Длительность", "Причина"] : ["Период", "Длительность", "Причина"])
+        (result.isAdmin ? ["ФИО", "Период", "Время", "Причина"] : ["Период", "Длительность", "Причина"])
           .forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
         thead.appendChild(hr); table.appendChild(thead);
         tbody = document.createElement('tbody'); table.appendChild(tbody);
@@ -178,7 +181,8 @@ async function loadRecords() {
       if (result.isAdmin) cells.push(r.fio);
       cells.push(r.from.replace('T', ' ') + " — " + r.to.replace('T', ' '));
       cells.push(ms ? fmtDur(ms) : "—");
-      cells.push(r.reason + (r.other ? " · " + r.other : ""));
+      const reasonShort = result.isAdmin ? r.reason.replace(/\s*\(.*?\)/g, "") : r.reason;
+      cells.push(reasonShort + (r.other ? " · " + r.other : ""));
       const tr = document.createElement('tr');
       cells.forEach(t => { const td = document.createElement('td'); td.textContent = t; tr.appendChild(td); });
       tbody.appendChild(tr);
