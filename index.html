@@ -113,7 +113,7 @@ const pad = new SignaturePad(canvas, {backgroundColor:'#fff'});
 document.getElementById('clearSig').onclick = () => pad.clear();
 
 // TODO: replace with your deployed Apps Script Web App URL
-const ENDPOINT = "https://script.google.com/macros/s/AKfycby-CciCiHg26D06HQse4WZ8NkcgAtRTboNojAFoi16hlR34Q5viD_eejctVpCRG-Ow/exec";
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbz-swRPCMEk2zJ-VT4-VNuoHhrjNf96JQ_uKeXNy-_SGJ9K1L0gTHs0dyphe76JntzGXA/exec";
 
 async function loadRecords() {
   const list = document.getElementById('recordsList');
@@ -141,21 +141,44 @@ async function loadRecords() {
       if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0));
       return null;
     };
-    const durMs = r => {
+    // Рабочий день 08:00–17:30, обед 12:00–13:30 => рабочее время 08:00–12:00 и 13:30–17:30 (8 ч).
+    // Считается пересечение отсутствия с рабочим временем каждого дня (обед не считается).
+    // Если отсутствие покрывает весь рабочий день (8 ч), это 1 дн.; иначе фактические часы.
+    const WORK_SEGMENTS = [[8 * 60, 12 * 60], [13 * 60 + 30, 17 * 60 + 30]];
+    const FULL_DAY_MIN = WORK_SEGMENTS.reduce((t, s) => t + s[1] - s[0], 0); // 480
+    const calc = r => {
       const a = parseDT(r.from), b = parseDT(r.to);
-      return (a && b && b > a) ? b - a : 0;
+      const res = { d: 0, m: 0 };
+      if (!(a && b && b > a)) return res;
+      let day = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+      while (day < b) {
+        let mins = 0;
+        WORK_SEGMENTS.forEach(([s, e]) => {
+          const ws = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, s);
+          const we = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, e);
+          const from = a > ws ? a : ws;
+          const to = b < we ? b : we;
+          mins += Math.max(0, Math.round((to - from) / 60000));
+        });
+        if (mins >= FULL_DAY_MIN) res.d += 1; else res.m += mins;
+        day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
+      }
+      return res;
     };
-    const fmtDur = ms => {
-      const mins = Math.round(ms / 60000);
-      const d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), mi = mins % 60;
+    const isEmpty = x => !x.d && !x.m;
+    const fmtDur = x => {
+      const h = Math.floor(x.m / 60), mi = x.m % 60;
       const parts = [];
-      if (d) parts.push(d + " дн.");
+      if (x.d) parts.push(x.d + " дн.");
       if (h) parts.push(h + " ч.");
       if (mi) parts.push(mi + " мин.");
       return parts.join(" ") || "0 мин.";
     };
     const totals = {};
-    sorted.forEach(({ r, k }) => { totals[k] = (totals[k] || 0) + durMs(r); });
+    sorted.forEach(({ r, k }) => {
+      const c = calc(r); const t = totals[k] || { d: 0, m: 0 };
+      t.d += c.d; t.m += c.m; totals[k] = t;
+    });
     let lastKey = null, tbody = null;
     sorted.forEach(({ r, k }) => {
       if (k !== lastKey) {
@@ -164,23 +187,23 @@ async function loadRecords() {
         h.style.cssText = 'font-weight:700;margin:16px 0 8px;color:var(--accent)';
         const name = k ? MONTHS[parseInt(k.slice(5), 10) - 1] : null;
         h.textContent = (name ? name + " " + k.slice(0, 4) : "Без даты")
-          + (totals[k] ? " · всего " + fmtDur(totals[k]) : "");
+          + (!isEmpty(totals[k]) ? " · всего " + fmtDur(totals[k]) : "");
         list.appendChild(h);
 
         const wrap = document.createElement('div'); wrap.className = 'tbl-wrap';
         const table = document.createElement('table'); table.className = 'rtbl' + (result.isAdmin ? ' adm' : '');
         const thead = document.createElement('thead'); const hr = document.createElement('tr');
-        (result.isAdmin ? ["ФИО", "Период", "Время", "Причина"] : ["Период", "Длит.", "Причина"])
+        (result.isAdmin ? ["ФИО", "Период", "Время", "Причина"] : ["Период", "Длительность", "Причина"])
           .forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
         thead.appendChild(hr); table.appendChild(thead);
         tbody = document.createElement('tbody'); table.appendChild(tbody);
         wrap.appendChild(table); list.appendChild(wrap);
       }
-      const ms = durMs(r);
+      const dur = calc(r);
       const cells = [];
       if (result.isAdmin) cells.push(r.fio);
       cells.push(r.from.replace('T', ' ') + " — " + r.to.replace('T', ' '));
-      cells.push(ms ? fmtDur(ms) : "—");
+      cells.push(!isEmpty(dur) ? fmtDur(dur) : "—");
       const reasonShort = result.isAdmin ? r.reason.replace(/\s*\(.*?\)/g, "") : r.reason;
       cells.push(reasonShort + (r.other ? " · " + r.other : ""));
       const tr = document.createElement('tr');
