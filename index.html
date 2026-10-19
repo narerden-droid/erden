@@ -170,7 +170,7 @@ async function loadRecords() {
         const wrap = document.createElement('div'); wrap.className = 'tbl-wrap';
         const table = document.createElement('table'); table.className = 'rtbl' + (result.isAdmin ? ' adm' : '');
         const thead = document.createElement('thead'); const hr = document.createElement('tr');
-        (result.isAdmin ? ["ФИО", "Период", "Время", "Причина"] : ["Период", "Длительность", "Причина"])
+        (result.isAdmin ? ["ФИО", "Период", "Время", "Причина"] : ["Период", "Длит.", "Причина"])
           .forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
         thead.appendChild(hr); table.appendChild(thead);
         tbody = document.createElement('tbody'); table.appendChild(tbody);
